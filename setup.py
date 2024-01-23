@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 _mydir = os.path.dirname(__file__)
 
-# parse version number from msatutil/__init__.py
+# parse version number from airglowlut/__init__.py
 version_re = r"^__version__ = ['\"]([^'\"]*)['\"]"
 with open(os.path.join(_mydir, "airglowlut", "__init__.py")) as f:
     content = f.read()
