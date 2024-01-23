@@ -12,7 +12,7 @@ It relies on data from:
 
 ### Usage
 
-Download and unzip `level2_nomal.tar.gz` at https://doi.org/10.7910/DVN/T1WRWQ into a `L2DIR` directory
+Download and unzip `level2_nominal.tar.gz` at https://doi.org/10.7910/DVN/T1WRWQ into a `L2DIR` directory
 
 Generate the lookup table with:
 

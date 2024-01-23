@@ -25,7 +25,7 @@ def get_info(file_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         - file_path (str): full path to the input data file
 
     Outputs:
-        - mean_sza (np.ndarray): array of solar zenith angles (degrees)
+        - sza (np.ndarray): array of solar zenith angles (degrees)
         - tangent_height (np.ndarray): array of tangent heights (km)
         - excited_o2 (np.ndarray): array of O2 in the singlet delta state (molec/cm3)
     """
