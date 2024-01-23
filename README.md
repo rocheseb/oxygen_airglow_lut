@@ -16,7 +16,7 @@ Download and unzip `level2_nomal.tar.gz` at https://doi.org/10.7910/DVN/T1WRWQ i
 
 Generate the lookup table with:
 
-airglowlut -i L2DIR
+`airglowlut -i L2DIR`
 
 ### Contact
 
