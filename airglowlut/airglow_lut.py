@@ -10,6 +10,7 @@ from scipy.interpolate import griddata
 from scipy.stats import pearsonr
 from datetime import datetime
 
+
 FIXED_HEIGHTS = np.array([10, 15, 25, 30, 35, 40, 45, 55, 60, 65, 75, 85, 270])
 FIXED_SZA = np.arange(20, 116, 5)  # 19 SZA
 
@@ -57,8 +58,16 @@ def gaussian(x: Union[float, np.ndarray], a: float, b: float, c: float) -> Union
     return a * np.exp(-((x - b) ** 2) / (2 * c**2))
 
 
-def polynomial(x: np.ndarray, *args) -> np.ndarray:
-    return np.sum([v * x**i for i, v in enumerate(args[::-1])], axis=0)
+def super_gaussian(
+    x: Union[float, np.ndarray], a: float, b: float, c: float, d: float
+) -> Union[float, np.ndarray]:
+    return a * np.exp(-b * x**c) + d
+
+
+def power_law(
+    x: Union[float, np.ndarray], a: float, b: float, c: float
+) -> Union[float, np.ndarray]:
+    return a * x**b + c
 
 
 def airglow_lut(indir: str, outfile: str) -> None:
@@ -99,7 +108,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
     peak_amp = np.zeros(nSZA) * np.nan
     for i, sza in enumerate(FIXED_SZA):
         y = np.nan_to_num(excited_o2_lut[:, i], nan=0)  # set nans to 0
-        # initial gueses are peak [amplitude,height,width]
+        # initial guesses are peak [amplitude,height,width]
         popt, _ = curve_fit(gaussian, FIXED_HEIGHTS, y, p0=[8e10, 50, 10])
         gauss_fit = gaussian(FIXED_HEIGHTS, *popt)
         r_squared = pearsonr(gauss_fit, y)[0] ** 2
@@ -110,11 +119,31 @@ def airglow_lut(indir: str, outfile: str) -> None:
 
             excited_o2_gauss_fit_lut[:, i] = gaussian(FINE_HEIGHTS, *popt)
 
-    # Parametrize the gaussian parameters as functions of SZA using quadratic fits
+    # Parametrize the gaussian parameters as functions of SZA
     vid = ~np.isnan(peak_height)
-    peak_amp_popt, _ = curve_fit(polynomial, FIXED_SZA[vid], peak_amp[vid], p0=[1, 1, 7e10])
-    peak_height_popt, _ = curve_fit(polynomial, FIXED_SZA[vid], peak_height[vid], p0=[0, 0, 0])
-    peak_width_popt, _ = curve_fit(polynomial, FIXED_SZA[vid], peak_width[vid], p0=[0, 0, 0])
+    sza_vid = FIXED_SZA[vid]
+
+    # for each fit we set a rough error estimate and deweight the higher SZA
+    # For widths use a linear fit
+    width_weights = np.ones(sza_vid.size) * 5
+    width_weights[sza_vid < 70] = 2
+    peak_width_popt, _ = curve_fit(
+        power_law, sza_vid, peak_width[vid], p0=[1, 2, 10], sigma=width_weights
+    )
+
+    # For amplitudes and heights, use a super gaussian fit
+    amp_weights = np.ones(sza_vid.size) * 4e10
+    amp_weights[sza_vid < 70] = 1e10
+    peak_amp_popt, _ = curve_fit(
+        power_law, sza_vid, peak_amp[vid], p0=[1, 2, 1e11], sigma=amp_weights
+    )
+
+    # for the height use a super gaussian fit and deweight the heights above 70 sza
+    height_weights = np.ones(sza_vid.size) * 10
+    height_weights[sza_vid < 70] = 3
+    peak_height_popt, _ = curve_fit(
+        super_gaussian, sza_vid, peak_height[vid], p0=[-1e4, 1e-10, 2, 1e4], sigma=height_weights
+    )
 
     description = """Lookup table of number density of O2 molecules at singlet delta state
     as a function of solar zenith angle and altitude. Also includes gaussian fits to these
@@ -126,12 +155,13 @@ def airglow_lut(indir: str, outfile: str) -> None:
     https://doi.org/10.7910/DVN/T1WRWQ, Harvard Dataverse, V1
     """
 
-    usage = """You can use peak_amplitude_coefficients, peak_width_coefficients, and
-    peak_height_coefficients with a 2nd order polynomial to get the corresponding
-    parameter at a given solar zenith angle:
-    peak_ampltiude(sza) = poly(sza,peak_amplitude_coefficients)
-    Then the excited_o2 profile can be obtained as:
-    peak_ampltiude*exp(-(height-peak_height)**2/(2*peak_width**2))
+    usage = """Use peak_amplitude_coefficients, and peak_width_coefficients with a power law:
+    p = peak_width_coefficients[:]
+    peak_width(sza) = p[0]*sza**p[1]+p[2]
+
+    Use peak_altitude_coefficients with a super gaussian:
+    p = peak_altitude_coefficients[:]
+    peak_altitude(sza) = p[0]*exp(-p[1]*sza**p[2]) + p[3]
     """
 
     # Write the lookup table
@@ -142,39 +172,40 @@ def airglow_lut(indir: str, outfile: str) -> None:
         nc.usage = usage
 
         # used to save the parametrized gaussian coefficents
-        nc.createDimension("fit", 3)
-        nc.createVariable("peak_amplitude_coefficients", np.float32, ("fit",))
+        nc.createDimension("power_law_coef", 3)
+        nc.createVariable("peak_amplitude_coefficients", np.float32, ("power_law_coef",))
         nc["peak_amplitude_coefficients"][:] = peak_amp_popt
         peak_amp_atts = {
             "standard_name": "peak_amplitude_coefficients",
             "long_name": "peak amplitude coefficients",
-            "description": """2nd order polynomial coefficients for the gaussian peak amplitude of
+            "description": """power law coefficients for the gaussian peak amplitude of
             excited_O2 as a function of solar zenith angle.
-            Peak amplitude = coef[0]*SZA**2+coef[1]*SZA+coef[2]""",
+            Peak amplitude = coef[0]*SZA**coef[1]+coef[2]""",
         }
         nc["peak_amplitude_coefficients"].setncatts(peak_amp_atts)
 
-        nc.createVariable("peak_height_coefficients", np.float32, ("fit",))
-        nc["peak_height_coefficients"][:] = peak_height_popt
-        peak_height_atts = {
-            "standard_name": "peak_height_coefficients",
-            "long_name": "height coefficients",
-            "description": """2nd order polynomial coefficients for the gaussian peak height of
-            excited_O2 as a function of solar zenith angle.
-            Peak height = coef[0]*SZA**2+coef[1]*SZA+coef[2]""",
-        }
-        nc["peak_amplitude_coefficients"].setncatts(peak_height_atts)
-
-        nc.createVariable("peak_width_coefficients", np.float32, ("fit",))
+        nc.createVariable("peak_width_coefficients", np.float32, ("power_law_coef",))
         nc["peak_width_coefficients"][:] = peak_width_popt
         peak_width_atts = {
             "standard_name": "peak_width_coefficients",
             "long_name": "width coefficients",
-            "description": """2nd order polynomial coefficients for the gaussian peak width of
+            "description": """power law coefficients for the gaussian peak width of
             excited_O2 as a function of solar zenith angle.
-            Peak width = coef[0]*SZA**2+coef[1]*SZA+coef[2]""",
+            Peak width = coef[0]*SZA**coef[1]+coef[2]""",
         }
         nc["peak_amplitude_coefficients"].setncatts(peak_width_atts)
+
+        nc.createDimension("super_gaussian_coef", 4)
+        nc.createVariable("peak_height_coefficients", np.float32, ("super_gaussian_coef",))
+        nc["peak_height_coefficients"][:] = peak_height_popt
+        peak_height_atts = {
+            "standard_name": "peak_height_coefficients",
+            "long_name": "height coefficients",
+            "description": """super gaussian coefficients for the gaussian peak height of
+            excited_O2 as a function of solar zenith angle.
+            Peak height = coef[0]*exp(-coef[1]*SZA**coef[2])+coef[3]""",
+        }
+        nc["peak_amplitude_coefficients"].setncatts(peak_height_atts)
 
         nc.createDimension("sza", nSZA)
         nc.createVariable("sza", np.float32, dimensions=("sza",))
