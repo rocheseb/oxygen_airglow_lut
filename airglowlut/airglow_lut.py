@@ -132,14 +132,24 @@ def airglow_lut(indir: str, outfile: str) -> None:
     width_weights = np.ones(sza_vid.size) * 5
     width_weights[sza_vid < 70] = 2
     peak_width_popt, _ = curve_fit(
-        power_law, sza_vid, peak_width[vid], p0=[1, 2, 10], sigma=width_weights
+        power_law,
+        sza_vid,
+        peak_width[vid],
+        p0=[1, 2, 10],
+        sigma=width_weights,
+        bound=((-np.inf, 2, 8), (np.inf, 3, 14)),
     )
 
     # For amplitudes and heights, use a super gaussian fit
     amp_weights = np.ones(sza_vid.size) * 4e10
     amp_weights[sza_vid < 70] = 1e10
     peak_amp_popt, _ = curve_fit(
-        power_law, sza_vid, peak_amp[vid], p0=[1, 2, 1e11], sigma=amp_weights
+        power_law,
+        sza_vid,
+        peak_amp[vid],
+        p0=[1, 2, 1e11],
+        sigma=amp_weights,
+        bounds=((-np.inf, 2, 6e10), (np.inf, 3, 1e11)),
     )
 
     # for the height use a super gaussian fit and deweight the heights above 70 sza
