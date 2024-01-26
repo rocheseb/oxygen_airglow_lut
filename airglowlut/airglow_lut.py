@@ -84,6 +84,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
         - outfile (str): full path to the output LUT file
     """
     file_list = Path(indir).rglob("*.nc")
+    print("Load input files")
     with ProgressBar():
         results = dask.compute(*[get_info(i) for i in file_list])
 
@@ -99,8 +100,10 @@ def airglow_lut(indir: str, outfile: str) -> None:
 
     x, y = np.meshgrid(FIXED_SZA, FIXED_HEIGHTS)
 
+    print("Compute raw LUT")
     excited_o2_lut = griddata((fsza[ids], fth[ids]), fo2[ids], (x, y))
 
+    print("Compute gaussian fits LUT")
     nSZA = FIXED_SZA.size
     excited_o2_gauss_fit_lut = np.zeros((FINE_HEIGHTS.size, nSZA)) * np.nan
     peak_height = np.zeros(nSZA) * np.nan
@@ -119,6 +122,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
 
             excited_o2_gauss_fit_lut[:, i] = gaussian(FINE_HEIGHTS, *popt)
 
+    print("Compute parametrization")
     # Parametrize the gaussian parameters as functions of SZA
     vid = ~np.isnan(peak_height)
     sza_vid = FIXED_SZA[vid]
