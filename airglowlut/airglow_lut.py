@@ -137,7 +137,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
         peak_width[vid],
         p0=[1, 2, 10],
         sigma=width_weights,
-        bound=((-np.inf, 2, 8), (np.inf, 3, 14)),
+        bounds=((-np.inf, 2, 8), (np.inf, 3, 14)),
     )
 
     # For amplitudes and heights, use a super gaussian fit
