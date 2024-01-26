@@ -242,8 +242,8 @@ def airglow_lut(indir: str, outfile: str) -> None:
         nc["height"].setncatts(height_atts)
 
         nc.createDimension("fine_height", FINE_HEIGHTS.size)
-        nc.createVariable("fine height", np.float32, dimensions=("fine_height",))
-        nc["fine height"][:] = FINE_HEIGHTS
+        nc.createVariable("fine_height", np.float32, dimensions=("fine_height",))
+        nc["fine_height"][:] = FINE_HEIGHTS
         height_atts = {
             "standard_name": "fine_height",
             "long_name": "fine height",
@@ -270,6 +270,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
             "description": "gauss fit to the number density of O2 molecules at singlet delta state",
         }
         nc["excited_o2_gauss_fit"].setncatts(excited_o2_gauss_fit_atts)
+    print(f"DONE: {outfile}")
 
 
 def main():
