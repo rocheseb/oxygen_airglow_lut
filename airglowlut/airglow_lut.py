@@ -187,7 +187,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
 
         # used to save the parametrized gaussian coefficents
         nc.createDimension("power_law_coef", 3)
-        nc.createVariable("peak_amplitude_coefficients", np.float32, ("power_law_coef",))
+        nc.createVariable("peak_amplitude_coefficients", np.float64, ("power_law_coef",))
         nc["peak_amplitude_coefficients"][:] = peak_amp_popt
         peak_amp_atts = {
             "standard_name": "peak_amplitude_coefficients",
@@ -198,7 +198,7 @@ def airglow_lut(indir: str, outfile: str) -> None:
         }
         nc["peak_amplitude_coefficients"].setncatts(peak_amp_atts)
 
-        nc.createVariable("peak_width_coefficients", np.float32, ("power_law_coef",))
+        nc.createVariable("peak_width_coefficients", np.float64, ("power_law_coef",))
         nc["peak_width_coefficients"][:] = peak_width_popt
         peak_width_atts = {
             "standard_name": "peak_width_coefficients",
@@ -207,10 +207,10 @@ def airglow_lut(indir: str, outfile: str) -> None:
             excited_O2 as a function of solar zenith angle.
             Peak width = coef[0]*SZA**coef[1]+coef[2]""",
         }
-        nc["peak_amplitude_coefficients"].setncatts(peak_width_atts)
+        nc["peak_width_coefficients"].setncatts(peak_width_atts)
 
         nc.createDimension("super_gaussian_coef", 4)
-        nc.createVariable("peak_height_coefficients", np.float32, ("super_gaussian_coef",))
+        nc.createVariable("peak_height_coefficients", np.float64, ("super_gaussian_coef",))
         nc["peak_height_coefficients"][:] = peak_height_popt
         peak_height_atts = {
             "standard_name": "peak_height_coefficients",
